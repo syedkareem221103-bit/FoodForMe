@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, API_BASE_URL } from '../context/AuthContext';
-import { Plus, Trash2, Edit2, Check, X, LayoutGrid, Coffee, Users, DollarSign, QrCode, TrendingUp, BarChart2, FileText, Download, Layers, Activity, Printer } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, LayoutGrid, Coffee, Users, DollarSign, QrCode, TrendingUp, BarChart2, FileText, Download, Layers, Activity, Printer, Sparkles } from 'lucide-react';
+import JSZip from 'jszip';
 
 const AdminDashboard = () => {
   const { getAuthHeaders } = useAuth();
@@ -21,6 +22,8 @@ const AdminDashboard = () => {
   // Table states
   const [tables, setTables] = useState([]);
   const [newTable, setNewTable] = useState({ number: '', capacity: 4 });
+  const [zipLoading, setZipLoading] = useState(false);
+  const [activePrintTable, setActivePrintTable] = useState(null); // 'all' or a table object
 
   // Stats / Orders states
   const [orders, setOrders] = useState([]);
@@ -47,6 +50,246 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, [activeTab]); // Refetch when switching tabs for up-to-date real-time metrics!
+
+  // Auto table numbering utility
+  useEffect(() => {
+    if (tables && tables.length > 0) {
+      const maxNum = Math.max(...tables.map(t => t.number), 0);
+      setNewTable(prev => ({ ...prev, number: maxNum + 1 }));
+    } else {
+      setNewTable(prev => ({ ...prev, number: 1 }));
+    }
+  }, [tables]);
+
+  // Dynamic HTML5 Canvas PNG compiler for premium QR cards
+  const downloadQRCard = (tableNum, capacity) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set high-res printable dimensions (800 x 1200 px for 2:3 aspect ratio card)
+    canvas.width = 800;
+    canvas.height = 1200;
+    
+    // 1. Draw rich dark-theme background
+    ctx.fillStyle = '#121214'; // dark-950
+    ctx.fillRect(0, 0, 800, 1200);
+    
+    // Draw background subtle radial glow
+    const gradient = ctx.createRadialGradient(400, 400, 50, 400, 400, 600);
+    gradient.addColorStop(0, 'rgba(72, 168, 115, 0.08)'); // brand-500/8%
+    gradient.addColorStop(1, 'rgba(18, 18, 20, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 800, 1200);
+
+    // Draw glowing green accent borders
+    ctx.strokeStyle = 'rgba(72, 168, 115, 0.15)'; // brand-500/15%
+    ctx.lineWidth = 4;
+    ctx.strokeRect(30, 30, 740, 1140);
+    
+    ctx.strokeStyle = 'rgba(72, 168, 115, 0.4)'; // brand-500/40%
+    ctx.lineWidth = 1;
+    ctx.strokeRect(40, 40, 720, 1120);
+
+    // 2. Draw Top Brand Header
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('FoodForMe', 400, 120);
+
+    ctx.fillStyle = '#48a873'; // brand-500
+    ctx.font = '800 16px sans-serif';
+    ctx.fillText('SMART ORDERING SYSTEM', 400, 160);
+
+    // Draw separator line
+    ctx.strokeStyle = '#2d2d30'; // dark-800
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(150, 200);
+    ctx.lineTo(650, 200);
+    ctx.stroke();
+
+    // 3. Draw Center Table Designation
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'extrabold 82px sans-serif';
+    ctx.fillText(`TABLE ${tableNum.toString().padStart(2, '0')}`, 400, 320);
+
+    ctx.fillStyle = '#9b9ba2'; // dark-300
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`${capacity} SEATS AVAILABLE`, 400, 370);
+
+    // 4. Fetch and render QR Code
+    const qrImg = new Image();
+    qrImg.crossOrigin = 'anonymous';
+    
+    const frontendUrl = window.location.origin;
+    const scanUrl = `${frontendUrl}/table/${tableNum}`;
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(scanUrl)}`;
+
+    qrImg.onload = () => {
+      // Draw a neat white background card under the QR code
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(175, 450, 450, 450, 24);
+      ctx.fill();
+
+      // Draw the QR Code image
+      ctx.drawImage(qrImg, 200, 475, 400, 400);
+
+      // 5. Draw Footer Instructions
+      ctx.fillStyle = '#48a873'; // brand-500
+      ctx.font = 'extrabold 28px sans-serif';
+      ctx.fillText('Scan to Order Food', 400, 990);
+
+      ctx.fillStyle = '#75757d'; // dark-400
+      ctx.font = 'medium 18px sans-serif';
+      ctx.fillText('Explore full categories menu • Pay instantly from table', 400, 1030);
+
+      ctx.fillStyle = 'rgba(72, 168, 115, 0.4)';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(`MAPPED DYNAMICALLY TO: ${scanUrl}`, 400, 1080);
+
+      // 6. Trigger client download
+      const link = document.createElement('a');
+      link.download = `foodforme_table_${tableNum}_qr_card.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    
+    qrImg.onerror = () => {
+      alert('Could not compile QR image, please check your network connection.');
+    };
+  };
+
+  // Dynamic ZIP compiler using canvas blobs and JSZip
+  const downloadAllQRCodesAsZIP = async () => {
+    if (tables.length === 0) return;
+    setZipLoading(true);
+    const zip = new JSZip();
+    const folder = zip.folder("foodforme_qr_cards");
+
+    const generateBlob = (tbl) => {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 1200;
+        
+        ctx.fillStyle = '#121214';
+        ctx.fillRect(0, 0, 800, 1200);
+        
+        const gradient = ctx.createRadialGradient(400, 400, 50, 400, 400, 600);
+        gradient.addColorStop(0, 'rgba(72, 168, 115, 0.08)');
+        gradient.addColorStop(1, 'rgba(18, 18, 20, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 800, 1200);
+
+        ctx.strokeStyle = 'rgba(72, 168, 115, 0.15)';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(30, 30, 740, 1140);
+        
+        ctx.strokeStyle = 'rgba(72, 168, 115, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(40, 40, 720, 1120);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('FoodForMe', 400, 120);
+
+        ctx.fillStyle = '#48a873';
+        ctx.font = '800 16px sans-serif';
+        ctx.fillText('SMART ORDERING SYSTEM', 400, 160);
+
+        ctx.strokeStyle = '#2d2d30';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(150, 200);
+        ctx.lineTo(650, 200);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'extrabold 82px sans-serif';
+        ctx.fillText(`TABLE ${tbl.number.toString().padStart(2, '0')}`, 400, 320);
+
+        ctx.fillStyle = '#9b9ba2';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText(`${tbl.capacity} SEATS AVAILABLE`, 400, 370);
+
+        const qrImg = new Image();
+        qrImg.crossOrigin = 'anonymous';
+        const frontendUrl = window.location.origin;
+        const scanUrl = `${frontendUrl}/table/${tbl.number}`;
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(scanUrl)}`;
+
+        qrImg.onload = () => {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.roundRect(175, 450, 450, 450, 24);
+          ctx.fill();
+
+          ctx.drawImage(qrImg, 200, 475, 400, 400);
+
+          ctx.fillStyle = '#48a873';
+          ctx.font = 'extrabold 28px sans-serif';
+          ctx.fillText('Scan to Order Food', 400, 990);
+
+          ctx.fillStyle = '#75757d';
+          ctx.font = 'medium 18px sans-serif';
+          ctx.fillText('Explore full categories menu • Pay instantly from table', 400, 1030);
+
+          ctx.fillStyle = 'rgba(72, 168, 115, 0.4)';
+          ctx.font = 'bold 12px monospace';
+          ctx.fillText(`MAPPED DYNAMICALLY TO: ${scanUrl}`, 400, 1080);
+
+          canvas.toBlob((blob) => {
+            resolve({ number: tbl.number, blob });
+          }, 'image/png');
+        };
+        
+        qrImg.onerror = () => {
+          resolve(null);
+        };
+      });
+    };
+
+    try {
+      const results = await Promise.all(tables.map(t => generateBlob(t)));
+      results.forEach(res => {
+        if (res) {
+          folder.file(`table_${res.number}_qr_card.png`, res.blob);
+        }
+      });
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement('a');
+      link.download = `foodforme_qr_cards_${new Date().toISOString().split('T')[0]}.zip`;
+      link.href = URL.createObjectURL(content);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error(err);
+      alert('Error creating bulk ZIP download.');
+    } finally {
+      setZipLoading(false);
+    }
+  };
+
+  const handlePrintCard = (tbl) => {
+    setActivePrintTable(tbl);
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
+
+  const handlePrintAll = () => {
+    setActivePrintTable('all');
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -453,113 +696,246 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* Tab 2: Dining Tables Management */}
+          {/* Tab 2: Dining Tables & Table QR Management Console */}
           {activeTab === 'tables' && (
-            <div className="grid lg:grid-cols-3 gap-8">
-              {/* Add Table form */}
-              <div className="lg:col-span-1">
-                <div className="glass p-6 rounded-2xl sticky top-28">
-                  <h2 className="text-lg font-bold text-white mb-4">Register New Table</h2>
-                  <form onSubmit={handleAddTable} className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-dark-300 mb-1.5">Table Number</label>
-                      <input
-                        type="number"
-                        value={newTable.number}
-                        onChange={e => setNewTable({ ...newTable, number: parseInt(e.target.value) || '' })}
-                        placeholder="e.g. 7"
-                        className="w-full text-xs glass-input"
-                        required
+            <div className="space-y-6">
+              
+              {/* Overlaid print container (hidden in desktop view, shown on print:block) */}
+              {activePrintTable && (
+                <div id="print-section" className="hidden print:block bg-white text-black p-0 min-h-screen">
+                  <style>{`
+                    @media print {
+                      body { background: white !important; color: black !important; }
+                      #root > div > :not(#print-section) { display: none !important; }
+                      nav, footer, button, .glass, .glass-card { display: none !important; }
+                      #print-section { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+                      .print-card {
+                        width: 100%;
+                        max-width: 480px;
+                        margin: 50px auto;
+                        padding: 40px;
+                        border: 6px double #000;
+                        text-align: center;
+                        font-family: monospace;
+                        page-break-inside: avoid;
+                        page-break-after: always;
+                      }
+                      .print-qr-img {
+                        width: 280px;
+                        height: 280px;
+                        margin: 25px auto;
+                        display: block;
+                      }
+                    }
+                  `}</style>
+                  
+                  {activePrintTable === 'all' ? (
+                    tables.map((tbl) => (
+                      <div key={tbl._id} className="print-card">
+                        <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0' }}>FoodForMe</h1>
+                        <p style={{ fontSize: '10px', letterSpacing: '2px', margin: '5px 0 20px' }}>SMART ORDERING SYSTEM</p>
+                        <div style={{ borderBottom: '2px dashed #000', margin: '15px 0' }}></div>
+                        <h2 style={{ fontSize: '48px', fontWeight: 'extrabold', margin: '10px 0' }}>TABLE {tbl.number.toString().padStart(2, '0')}</h2>
+                        <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{tbl.capacity} SEATS AVAILABLE</p>
+                        
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/table/${tbl.number}`)}`}
+                          alt="QR Code"
+                          className="print-qr-img"
+                        />
+                        
+                        <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#000', margin: '10px 0' }}>Scan to Order Food</h3>
+                        <p style={{ fontSize: '11px' }}>Explore full categories menu • Pay instantly from table</p>
+                        <p style={{ fontSize: '9px', marginTop: '20px', color: '#666' }}>{window.location.origin}/table/{tbl.number}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="print-card">
+                      <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0' }}>FoodForMe</h1>
+                      <p style={{ fontSize: '10px', letterSpacing: '2px', margin: '5px 0 20px' }}>SMART ORDERING SYSTEM</p>
+                      <div style={{ borderBottom: '2px dashed #000', margin: '15px 0' }}></div>
+                      <h2 style={{ fontSize: '48px', fontWeight: 'extrabold', margin: '10px 0' }}>TABLE {activePrintTable.number.toString().padStart(2, '0')}</h2>
+                      <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{activePrintTable.capacity} SEATS AVAILABLE</p>
+                      
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${window.location.origin}/table/${activePrintTable.number}`)}`}
+                        alt="QR Code"
+                        className="print-qr-img"
                       />
+                      
+                      <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#000', margin: '10px 0' }}>Scan to Order Food</h3>
+                      <p style={{ fontSize: '11px' }}>Explore full categories menu • Pay instantly from table</p>
+                      <p style={{ fontSize: '9px', marginTop: '20px', color: '#666' }}>{window.location.origin}/table/{activePrintTable.number}</p>
                     </div>
+                  )}
+                </div>
+              )}
 
-                    <div>
-                      <label className="block text-xs font-semibold text-dark-300 mb-1.5">Seating Capacity</label>
-                      <input
-                        type="number"
-                        value={newTable.capacity}
-                        onChange={e => setNewTable({ ...newTable, capacity: parseInt(e.target.value) || '' })}
-                        placeholder="e.g. 4"
-                        className="w-full text-xs glass-input"
-                        required
-                      />
-                    </div>
-
-                    <button type="submit" className="w-full glass-btn-primary py-2.5 text-xs font-bold mt-2">
-                      <Plus size={14} className="inline mr-1" /> Add Table
-                    </button>
-                  </form>
-
-                  <div className="mt-8 border-t border-dark-850 pt-6 space-y-3">
-                    <h3 className="text-xs font-bold text-white">QR Code Simulation Link</h3>
-                    <p className="text-xs text-dark-400 leading-relaxed">
-                      QR codes are placed physically on each table. Customers scanning them are redirected to:
-                    </p>
-                    <code className="block p-3 rounded-lg bg-dark-950 border border-dark-850 text-[10px] text-brand-400 break-all select-all font-mono">
-                      http://localhost:5173/menu?table=NUM
-                    </code>
-                  </div>
+              {/* Bulk actions and quick settings bar */}
+              <div className="glass p-6 rounded-2xl border border-dark-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <QrCode className="text-brand-400" />
+                    <span>Table QR Management Console</span>
+                  </h2>
+                  <p className="text-xs text-dark-300 mt-1">Configure physical dining seating nodes and download high-resolution QR cards.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={handlePrintAll}
+                    className="glass bg-dark-850 hover:bg-dark-800 border border-dark-750 text-dark-200 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer size={14} className="text-brand-400" />
+                    <span>Bulk Print Cards</span>
+                  </button>
+                  <button
+                    onClick={downloadAllQRCodesAsZIP}
+                    disabled={zipLoading}
+                    className="glass bg-dark-850 hover:bg-dark-800 border border-dark-750 text-dark-200 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {zipLoading ? (
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-brand-500 border-t-transparent"></div>
+                    ) : (
+                      <Download size={14} className="text-brand-400" />
+                    )}
+                    <span>Download All ZIP</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Tables status grid */}
-              <div className="lg:col-span-2">
-                <div className="glass p-6 rounded-2xl">
-                  <h2 className="text-lg font-bold text-white mb-6">Physical Table Grid & QR Mockups</h2>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {tables.map(tbl => (
-                      <div
-                        key={tbl._id}
-                        className="p-5 rounded-xl border border-dark-850 bg-dark-900/20 flex flex-col justify-between"
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="font-extrabold text-white text-lg">Table {tbl.number}</h3>
-                            <p className="text-xs text-dark-400 mt-0.5">{tbl.capacity} Seats Available</p>
-                          </div>
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize ${
-                            tbl.status === 'empty'
-                              ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-500/20'
-                              : tbl.status === 'occupied'
-                                ? 'bg-amber-950/70 text-amber-400 border border-amber-500/20'
-                                : 'bg-dark-800 text-dark-400'
-                          }`}>
-                            {tbl.status}
-                          </span>
-                        </div>
-
-                        {/* Interactive Visual QR Code Mockup */}
-                        <div className="flex flex-col items-center justify-center bg-dark-950/40 border border-dark-850 p-4 rounded-xl mb-4 transition-all duration-300 hover:border-brand-500/30">
-                          <div className="w-32 h-32 bg-white p-2 rounded-xl shadow-lg relative overflow-hidden flex items-center justify-center group cursor-pointer transition-transform duration-300 hover:scale-105">
-                            <img
-                              src={`${API_BASE_URL}/tables/${tbl.number}/qr`}
-                              alt={`QR Code for Table ${tbl.number}`}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`http://localhost:5173/menu?table=${tbl.number}`)}`;
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          </div>
-                          <span className="text-[10px] text-dark-400 mt-2 font-medium tracking-wide">
-                            Scan to Order • Table {tbl.number}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2 border-t border-dark-850/60 pt-4">
-                          <a
-                            href={`/menu?table=${tbl.number}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-dark-800 hover:bg-dark-750 text-dark-200 hover:text-white text-xs font-bold transition-all border border-dark-700 cursor-pointer"
-                          >
-                            <QrCode size={14} className="text-brand-400" />
-                            <span>Scan (Customer)</span>
-                          </a>
-                        </div>
+              <div className="grid lg:grid-cols-3 gap-8">
+                {/* Form column */}
+                <div className="lg:col-span-1">
+                  <div className="glass p-6 rounded-2xl sticky top-28 border border-dark-850 space-y-6">
+                    <h3 className="text-base font-extrabold text-white">Register New Seating</h3>
+                    <form onSubmit={handleAddTable} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-dark-300 mb-1.5">Table Number (Auto-Suggested)</label>
+                        <input
+                          type="number"
+                          value={newTable.number}
+                          onChange={e => setNewTable({ ...newTable, number: parseInt(e.target.value) || '' })}
+                          placeholder="e.g. 7"
+                          className="w-full text-xs glass-input"
+                          required
+                        />
                       </div>
-                    ))}
+
+                      <div>
+                        <label className="block text-xs font-semibold text-dark-300 mb-1.5">Seating Capacity</label>
+                        <input
+                          type="number"
+                          value={newTable.capacity}
+                          onChange={e => setNewTable({ ...newTable, capacity: parseInt(e.target.value) || '' })}
+                          placeholder="e.g. 4"
+                          className="w-full text-xs glass-input"
+                          required
+                        />
+                      </div>
+
+                      <button type="submit" className="w-full glass-btn-primary py-2.5 text-xs font-bold mt-2">
+                        <Plus size={14} className="inline mr-1" /> Add Dining Table
+                      </button>
+                    </form>
+
+                    <div className="mt-8 border-t border-dark-850 pt-6 space-y-3">
+                      <h4 className="text-xs font-bold text-white">QR Code Target URL (Dynamic)</h4>
+                      <p className="text-xs text-dark-400 leading-relaxed">
+                        Cards dynamically adapt to your current domain and map customers to:
+                      </p>
+                      <code className="block p-3 rounded-xl bg-dark-950 border border-dark-850 text-[10px] text-brand-400 break-all select-all font-mono">
+                        {window.location.origin}/table/NUM
+                      </code>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Cards Grid Column */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {tables.map(tbl => {
+                      const frontendUrl = window.location.origin;
+                      const scanUrl = `${frontendUrl}/table/${tbl.number}`;
+                      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
+
+                      return (
+                        <div
+                          key={tbl._id}
+                          className="glass-card border border-dark-850/80 bg-dark-900/10 flex flex-col justify-between relative overflow-hidden group shadow-lg"
+                        >
+                          {/* Top Decorative accent banner */}
+                          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-brand-600 to-brand-400 opacity-50"></div>
+                          
+                          {/* Inner Card Header */}
+                          <div className="p-5 pb-3">
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <h3 className="font-extrabold text-white text-lg tracking-tight">Table {tbl.number.toString().padStart(2, '0')}</h3>
+                                <p className="text-xs text-dark-400 mt-0.5">{tbl.capacity} Seats Available</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`h-2 w-2 rounded-full ${
+                                  tbl.status === 'empty' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                                }`} />
+                                <span className={`text-[10px] uppercase font-bold tracking-wider ${
+                                  tbl.status === 'empty' ? 'text-emerald-400' : 'text-amber-400'
+                                }`}>
+                                  {tbl.status}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Center QR Poster Card Component */}
+                            <div className="bg-dark-950/60 border border-dark-850/80 p-5 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 hover:border-brand-500/25 relative overflow-hidden group">
+                              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-20 w-20 rounded-full bg-brand-500/5 blur-xl pointer-events-none" />
+                              
+                              <div className="w-40 h-40 bg-white p-3 rounded-2xl shadow-xl flex items-center justify-center relative overflow-hidden group/qr cursor-pointer transition-transform duration-300 hover:scale-105">
+                                <img
+                                  src={qrUrl}
+                                  alt={`QR Code for Table ${tbl.number}`}
+                                  className="w-full h-full object-contain"
+                                />
+                                <div className="absolute inset-0 bg-brand-500/5 opacity-0 group-hover/qr:opacity-100 transition-opacity duration-300" />
+                              </div>
+                              <span className="text-[10px] text-brand-400 font-bold uppercase tracking-widest mt-3.5 flex items-center gap-1.5">
+                                <Sparkles size={11} className="animate-pulse" />
+                                <span>Scan to Order Food</span>
+                              </span>
+                              <span className="text-[9px] text-dark-500 mt-1 font-mono tracking-wider break-all text-center max-w-[220px]">
+                                {scanUrl}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Action controls footer */}
+                          <div className="p-5 pt-0 border-t border-dark-850/50 mt-4 flex items-center gap-2">
+                            <button
+                              onClick={() => downloadQRCard(tbl.number, tbl.capacity)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-dark-200 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                            >
+                              <Download size={12} className="text-brand-400" />
+                              <span>PNG</span>
+                            </button>
+                            <button
+                              onClick={() => handlePrintCard(tbl)}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-dark-200 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                            >
+                              <Printer size={12} className="text-brand-400" />
+                              <span>Print</span>
+                            </button>
+                            <a
+                              href={`/table/${tbl.number}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/20 text-brand-400 hover:text-white text-xs font-extrabold transition-all cursor-pointer"
+                            >
+                              <QrCode size={12} />
+                              <span>Test Link</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

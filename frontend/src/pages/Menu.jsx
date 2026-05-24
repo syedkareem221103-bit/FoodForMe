@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useParams } from 'react-router-dom';
 import { Utensils, ShoppingBag, Plus, Minus, X, Check, Flame, AlertCircle } from 'lucide-react';
 import { API_BASE_URL } from '../context/AuthContext';
 import axios from 'axios';
 
 const Menu = () => {
+  const { tableNumber: routeTableNumber } = useParams();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const tableNumber = parseInt(queryParams.get('table')) || parseInt(localStorage.getItem('tableNumber'));
+  const tableNumber = parseInt(routeTableNumber) || parseInt(queryParams.get('table')) || parseInt(localStorage.getItem('tableNumber'));
 
   const [foodItems, setFoodItems] = useState([]);
   const [categories, setCategories] = useState(['All', 'Starters', 'Main Course', 'Desserts', 'Beverages']);

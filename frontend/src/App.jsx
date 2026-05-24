@@ -6,7 +6,7 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Import Pages
-import Home from './pages/Home';
+import HomePage from './pages/HomePage';
 import Menu from './pages/Menu';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
@@ -24,7 +24,8 @@ function App() {
           <main className="flex-1">
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="/table/:tableNumber" element={<Menu />} />
               <Route path="/menu" element={<Menu />} />
               <Route path="/login" element={<AdminLogin />} />
 
