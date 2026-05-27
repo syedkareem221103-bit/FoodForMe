@@ -8,8 +8,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Import Pages
 import HomePage from './pages/HomePage';
 import Menu from './pages/Menu';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
+import Signup from './pages/Signup';
+import Signin from './pages/Signin';
+import SaaSWebDashboard from './pages/SaaSWebDashboard';
 import WaiterDashboard from './pages/WaiterDashboard';
 import KitchenDashboard from './pages/KitchenDashboard';
 
@@ -23,20 +24,28 @@ function App() {
           <Navbar />
           <main className="flex-1">
             <Routes>
-              {/* Public Routes */}
+              {/* Public SaaS & Customer Dining Routes */}
               <Route path="/" element={<HomePage />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/signin" element={<Signin />} />
+              <Route path="/login" element={<Navigate to="/signin" replace />} />
+              
+              <Route path="/restaurant/:restaurantId/table/:tableNumber" element={<Menu />} />
               <Route path="/table/:tableNumber" element={<Menu />} />
               <Route path="/menu" element={<Menu />} />
-              <Route path="/login" element={<AdminLogin />} />
 
-              {/* Protected Staff Routes */}
+              {/* Protected Staff & Owner Routes */}
               <Route
-                path="/admin"
+                path="/dashboard"
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
-                    <AdminDashboard />
+                    <SaaSWebDashboard />
                   </ProtectedRoute>
                 }
+              />
+              <Route
+                path="/admin"
+                element={<Navigate to="/dashboard" replace />}
               />
               <Route
                 path="/waiter"

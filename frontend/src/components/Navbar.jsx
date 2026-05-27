@@ -16,7 +16,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/signin');
   };
 
   return (
@@ -46,11 +46,11 @@ const Navbar = () => {
               {/* Role specific links */}
               {user.role === 'admin' && (
                 <Link
-                  to="/admin"
-                  className="flex items-center gap-1.5 text-sm font-medium text-dark-200 hover:text-white transition-colors"
+                  to="/dashboard"
+                  className="flex items-center gap-1.5 text-sm font-medium text-dark-200 hover:text-white transition-colors animate-pulse-subtle"
                 >
                   <LayoutDashboard size={16} className="text-brand-400" />
-                  <span className="hidden sm:inline">Admin Panel</span>
+                  <span className="hidden sm:inline">SaaS Dashboard</span>
                 </Link>
               )}
               {user.role === 'waiter' && (
@@ -81,7 +81,7 @@ const Navbar = () => {
 
               <button
                 onClick={handleLogout}
-                className="flex items-center justify-center gap-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer border border-dark-700"
+                className="flex items-center justify-center gap-2 rounded-xl bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer border border-dark-700 active:scale-95"
               >
                 <LogOut size={16} />
                 <span className="hidden md:inline">Log Out</span>
@@ -89,14 +89,23 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              {location.pathname !== '/login' && (
-                <Link
-                  to="/login"
-                  className="flex items-center gap-2 rounded-xl bg-dark-850 hover:bg-dark-800 text-dark-200 hover:text-white px-4 py-2 text-sm font-medium transition-all border border-dark-800"
-                >
-                  <LogIn size={16} />
-                  <span>Staff Login</span>
-                </Link>
+              {location.pathname !== '/signin' && (
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/signin"
+                    className="flex items-center gap-2 rounded-xl bg-dark-850 hover:bg-dark-800 text-dark-200 hover:text-white px-4 py-2 text-sm font-medium transition-all border border-dark-800"
+                  >
+                    <LogIn size={16} />
+                    <span>Sign In</span>
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="flex items-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-white px-4 py-2 text-sm font-bold transition-all shadow-md shadow-brand-900/10"
+                  >
+                    <Sparkles size={14} />
+                    <span>Start Trial</span>
+                  </Link>
+                </div>
               )}
             </>
           )}

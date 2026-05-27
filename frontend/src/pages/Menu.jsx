@@ -5,9 +5,12 @@ import { API_BASE_URL } from '../context/AuthContext';
 import axios from 'axios';
 
 const Menu = () => {
-  const { tableNumber: routeTableNumber } = useParams();
+  const { restaurantId: routeRestaurantId, tableNumber: routeTableNumber } = useParams();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
+
+  // Multi-tenant parameter resolution
+  const restaurantId = routeRestaurantId || queryParams.get('restaurantId') || localStorage.getItem('restaurantId');
   const tableNumber = parseInt(routeTableNumber) || parseInt(queryParams.get('table')) || parseInt(localStorage.getItem('tableNumber'));
 
   const [foodItems, setFoodItems] = useState([]);
@@ -40,16 +43,24 @@ const Menu = () => {
   }, [cart, tableNumber]);
 
   useEffect(() => {
+    if (restaurantId) {
+      localStorage.setItem('restaurantId', restaurantId);
+    }
     if (tableNumber) {
       localStorage.setItem('tableNumber', tableNumber);
     }
-    fetchMenu();
-  }, [tableNumber]);
+    if (restaurantId && tableNumber) {
+      fetchMenu();
+    } else {
+      setLoading(false);
+    }
+  }, [restaurantId, tableNumber]);
 
   const fetchMenu = async () => {
+    if (!restaurantId) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/menu?isAvailable=true`);
+      const response = await axios.get(`${API_BASE_URL}/menu?isAvailable=true&restaurantId=${restaurantId}`);
       if (response.data.success) {
         setFoodItems(response.data.data);
       } else {
@@ -101,7 +112,7 @@ const Menu = () => {
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
-    if (cart.length === 0) return;
+    if (cart.length === 0 || !restaurantId) return;
     
     setIsSubmitting(true);
     try {
@@ -112,6 +123,7 @@ const Menu = () => {
 
       const response = await axios.post(`${API_BASE_URL}/orders`, {
         tableNumber,
+        restaurantId,
         items: orderItems,
         notes,
       });
@@ -131,10 +143,10 @@ const Menu = () => {
   };
 
   const handleRequestBill = async () => {
-    if (!tableNumber) return;
+    if (!tableNumber || !restaurantId) return;
     setBillLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/tables/${tableNumber}/checkout`);
+      const response = await axios.post(`${API_BASE_URL}/tables/${tableNumber}/checkout?restaurantId=${restaurantId}`);
       if (response.data.success) {
         setCheckoutBill(response.data.data);
       } else {
@@ -152,17 +164,17 @@ const Menu = () => {
     ? foodItems
     : foodItems.filter((item) => item.category === selectedCategory);
 
-  if (!tableNumber) {
+  if (!restaurantId || !tableNumber) {
     return (
       <div className="mx-auto max-w-md px-6 py-20 text-center animate-fade-in">
         <div className="glass border-rose-500/25 rounded-2xl p-8 shadow-xl">
           <AlertCircle size={48} className="mx-auto text-rose-500 mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">No Table Scanned</h1>
           <p className="text-dark-300 mb-6">
-            To view the menu and place an order, you must scan a table's QR code.
+            To view the menu and place an order, you must scan a table's QR code or visit a restaurant-specific table link.
           </p>
           <Link to="/" className="glass-btn-primary block w-full text-center">
-            Go to Home & Select a Table
+            Go to Home Page
           </Link>
         </div>
       </div>

@@ -76,6 +76,33 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const registerRestaurant = async (restaurantData) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register-restaurant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(restaurantData),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        localStorage.setItem('token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, user: data.user, restaurant: data.restaurant };
+      } else {
+        return { success: false, message: data.message || 'Registration failed' };
+      }
+    } catch (error) {
+      return { success: false, message: 'Server connection failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken('');
@@ -83,7 +110,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, getAuthHeaders }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, registerRestaurant, getAuthHeaders }}>
       {children}
     </AuthContext.Provider>
   );
