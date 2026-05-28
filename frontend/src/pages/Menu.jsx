@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useParams } from 'react-router-dom';
-import { Utensils, ShoppingBag, Plus, Minus, X, Check, Flame, AlertCircle } from 'lucide-react';
+import { Utensils, ShoppingBag, Plus, Minus, X, Check, Flame, AlertCircle, PhoneCall, Receipt, Sparkles } from 'lucide-react';
 import { API_BASE_URL } from '../context/AuthContext';
 import axios from 'axios';
 
@@ -34,6 +34,11 @@ const Menu = () => {
   // Bill checkout state
   const [checkoutBill, setCheckoutBill] = useState(null);
   const [billLoading, setBillLoading] = useState(false);
+
+  // Responsive Drawer and Toast feedback
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [activeToast, setActiveToast] = useState(null);
+  const [waiterCalled, setWaiterCalled] = useState(false);
 
   // Sync cart to localStorage
   useEffect(() => {
@@ -86,6 +91,12 @@ const Menu = () => {
         return [...prevCart, { foodItem: item, quantity: 1 }];
       }
     });
+
+    // Sleek Toast Confirmation
+    setActiveToast({ name: item.name });
+    setTimeout(() => {
+      setActiveToast((curr) => (curr?.name === item.name ? null : curr));
+    }, 2500);
   };
 
   const handleUpdateQuantity = (itemId, amount) => {
@@ -132,6 +143,7 @@ const Menu = () => {
         setOrderSuccess(response.data.data);
         setCart([]);
         setNotes('');
+        setIsCartOpen(false);
       } else {
         alert(response.data.message || 'Failed to submit order');
       }
@@ -159,6 +171,12 @@ const Menu = () => {
     }
   };
 
+  const handleCallWaiter = () => {
+    setWaiterCalled(true);
+    setTimeout(() => setWaiterCalled(false), 5000);
+    alert(`🛎️ Waiter Called! A staff member has been notified and is coming to Table ${tableNumber} immediately.`);
+  };
+
   // Filter food items by category
   const filteredItems = selectedCategory === 'All'
     ? foodItems
@@ -166,14 +184,14 @@ const Menu = () => {
 
   if (!restaurantId || !tableNumber) {
     return (
-      <div className="mx-auto max-w-md px-6 py-20 text-center animate-fade-in">
-        <div className="glass border-rose-500/25 rounded-2xl p-8 shadow-xl">
+      <div className="mx-auto max-w-md px-4 py-16 sm:px-6 sm:py-20 text-center animate-fade-in">
+        <div className="glass border-rose-500/25 rounded-2xl p-6 sm:p-8 shadow-xl">
           <AlertCircle size={48} className="mx-auto text-rose-500 mb-4" />
-          <h1 className="text-2xl font-bold text-white mb-2">No Table Scanned</h1>
-          <p className="text-dark-300 mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">No Table Scanned</h1>
+          <p className="text-xs sm:text-sm text-dark-300 mb-6">
             To view the menu and place an order, you must scan a table's QR code or visit a restaurant-specific table link.
           </p>
-          <Link to="/" className="glass-btn-primary block w-full text-center">
+          <Link to="/" className="glass-btn-primary block w-full text-center py-3 text-xs sm:text-sm">
             Go to Home Page
           </Link>
         </div>
@@ -182,104 +200,168 @@ const Menu = () => {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-2 text-brand-400 font-semibold mb-1">
-            <Utensils size={18} />
-            <span>Table {tableNumber} digital menu</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-white font-display">Discover Delicious Food</h1>
+    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8 relative animate-fade-in">
+      {/* Scoped CSS styling injected directly for clean customization */}
+      <style>{`
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-none {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0);
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
+      {/* Floating Micro-Toast confirmation */}
+      {activeToast && (
+        <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-55 bg-emerald-500 text-white text-xs font-extrabold py-2.5 px-5 rounded-full shadow-lg shadow-emerald-950/20 flex items-center gap-2 animate-slide-up border border-emerald-400/25 whitespace-nowrap">
+          <Check size={14} />
+          <span>Added {activeToast.name} to basket!</span>
         </div>
-        <button
-          onClick={handleRequestBill}
-          className="glass-btn-secondary flex items-center justify-center gap-2 self-start md:self-auto"
-        >
-          <span>Ask for Bill / Checkout</span>
-        </button>
+      )}
+
+      {/* Customer Header - Modern & Compact */}
+      <div className="flex items-center justify-between border-b border-dark-900/60 pb-4 mb-5 gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-brand-400 font-semibold mb-0.5 text-xs sm:text-sm">
+            <Utensils size={14} className="flex-shrink-0" />
+            <span className="truncate">Table {tableNumber} Menu</span>
+          </div>
+          <h1 className="text-lg sm:text-2xl font-black text-white font-display tracking-tight flex items-center gap-1.5">
+            Discover Food
+            <Sparkles size={14} className="text-brand-400 hidden sm:inline animate-pulse" />
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={handleCallWaiter}
+            className="rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 px-3 py-2 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            title="Call Waiter"
+          >
+            <PhoneCall size={13} />
+            <span className="hidden sm:inline">Call Waiter</span>
+          </button>
+          <button
+            onClick={handleRequestBill}
+            disabled={billLoading}
+            className="glass-btn-primary px-3 py-2 text-xs font-extrabold flex items-center gap-1.5 active:scale-95 cursor-pointer"
+          >
+            {billLoading ? (
+              <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+            ) : (
+              <>
+                <Receipt size={13} />
+                <span>Ask for Bill</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-6 items-start">
         {/* Menu Listings */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Category Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap border ${
-                  selectedCategory === cat
-                    ? 'bg-brand-500 text-white border-brand-500 shadow-md shadow-brand-900/10'
-                    : 'bg-dark-900 text-dark-300 border-dark-850 hover:bg-dark-800 hover:text-white'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        <div className="lg:col-span-2 space-y-4">
+          
+          {/* Horizontal Scrolling Sticky Category Tabs (with hidden scrollbar & snap alignment) */}
+          <div className="sticky top-[53px] sm:top-[68px] z-40 bg-dark-950/95 backdrop-blur-md py-3 -mx-4 border-b border-dark-900/50">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory px-4">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap border snap-start ${
+                    selectedCategory === cat
+                      ? 'bg-brand-500 text-white border-brand-500 shadow-md shadow-brand-500/20 scale-105'
+                      : 'bg-dark-900/60 text-dark-350 border-dark-800/80 hover:bg-dark-800 hover:text-white'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
             <div className="flex justify-center py-20">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-3 border-brand-500 border-t-transparent"></div>
             </div>
           ) : error ? (
-            <div className="glass p-6 text-center text-rose-400 border-rose-500/10 rounded-2xl">
+            <div className="glass p-5 text-center text-rose-450 border-rose-500/10 rounded-2xl text-xs sm:text-sm font-semibold">
               {error}
             </div>
           ) : filteredItems.length === 0 ? (
-            <div className="glass p-12 text-center text-dark-400 rounded-2xl">
+            <div className="glass p-10 text-center text-dark-400 rounded-2xl text-xs sm:text-sm">
               No items available in this category.
             </div>
           ) : (
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {filteredItems.map((item) => (
-                <div key={item._id} className="glass-card overflow-hidden flex flex-col justify-between">
-                  <div>
-                    {item.image && (
-                      <div className="relative h-44 w-full bg-dark-950 overflow-hidden">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
-                        />
-                        <div className="absolute top-3 right-3 flex gap-1.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border backdrop-blur-sm ${
-                            item.isVeg
-                              ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/20'
-                              : 'bg-rose-950/70 text-rose-400 border-rose-500/20'
-                          }`}>
-                            {item.isVeg ? 'Veg' : 'Non-Veg'}
-                          </span>
-                        </div>
+                <div key={item._id} className="glass-card overflow-hidden flex flex-col justify-between h-[365px] group transition-all duration-300 hover:border-brand-500/25">
+                  <div className="relative h-44 w-full bg-dark-950 overflow-hidden flex-shrink-0">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-dark-900 text-dark-500">
+                        <Utensils size={36} />
                       </div>
                     )}
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <h3 className="font-bold text-white text-lg">{item.name}</h3>
-                        <span className="font-bold text-brand-400 text-lg">₹{item.price}</span>
+                    {/* Category / Veg Badge absolute positioning */}
+                    <div className="absolute top-3 left-3 flex gap-1.5 z-10">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border backdrop-blur-md uppercase tracking-wider ${
+                        item.isVeg
+                          ? 'bg-emerald-950/70 text-emerald-450 border-emerald-500/20'
+                          : 'bg-rose-950/70 text-rose-450 border-rose-500/20'
+                      }`}>
+                        {item.isVeg ? '● Veg' : '▲ Non-Veg'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h3 className="font-extrabold text-white text-base truncate pr-1 group-hover:text-brand-400 transition-colors">{item.name}</h3>
+                        <span className="font-extrabold text-brand-400 text-base flex-shrink-0">₹{item.price}</span>
                       </div>
-                      <p className="text-dark-300 text-sm line-clamp-2 leading-relaxed mb-4">
+                      <p className="text-dark-350 text-xs line-clamp-2 leading-relaxed mb-3">
                         {item.description}
                       </p>
                     </div>
-                  </div>
 
-                  <div className="px-5 pb-5 pt-0 flex items-center justify-between mt-auto">
-                    {/* Spicy Level display */}
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: item.spicyLevel }).map((_, idx) => (
-                        <Flame key={idx} size={14} className="text-amber-500 fill-amber-500" />
-                      ))}
+                    <div className="flex items-center justify-between border-t border-dark-850 pt-3 mt-auto">
+                      {/* Spicy display */}
+                      <div className="flex items-center gap-0.5">
+                        {item.spicyLevel > 0 ? (
+                          Array.from({ length: item.spicyLevel }).map((_, idx) => (
+                            <Flame key={idx} size={12} className="text-amber-500 fill-amber-500" />
+                          ))
+                        ) : (
+                          <span className="text-[10px] text-dark-500 font-semibold uppercase tracking-wider">Mild</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleAddToCart(item)}
+                        className="glass-btn-primary py-1.5 px-3.5 text-[11px] font-extrabold flex items-center gap-1.5 active:scale-95 transition-all shadow-md shadow-brand-500/5 hover:shadow-brand-500/10 cursor-pointer"
+                      >
+                        <Plus size={12} />
+                        <span>Add to Cart</span>
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleAddToCart(item)}
-                      className="glass-btn-primary py-1.5 px-4 text-xs font-semibold flex items-center gap-1.5"
-                    >
-                      <Plus size={14} />
-                      <span>Add to Cart</span>
-                    </button>
                   </div>
                 </div>
               ))}
@@ -287,14 +369,14 @@ const Menu = () => {
           )}
         </div>
 
-        {/* Shopping Cart Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="glass rounded-2xl p-6 border-dark-850 sticky top-28">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <ShoppingBag size={20} className="text-brand-400" />
+        {/* Shopping Cart Sidebar (Desktop only) */}
+        <div className="hidden lg:block lg:col-span-1">
+          <div className="glass rounded-2xl p-5 border-dark-850 sticky top-24 shadow-xl">
+            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <ShoppingBag size={18} className="text-brand-400 animate-pulse-subtle" />
               <span>Your Basket</span>
               {cart.length > 0 && (
-                <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-xs font-bold text-white">
+                <span className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
                   {cart.reduce((sum, item) => sum + item.quantity, 0)}
                 </span>
               )}
@@ -302,22 +384,22 @@ const Menu = () => {
 
             {cart.length === 0 ? (
               <div className="py-12 text-center text-dark-400 flex flex-col items-center justify-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-dark-900 border border-dark-800 flex items-center justify-center text-dark-500">
-                  <ShoppingBag size={20} />
+                <div className="h-10 w-10 rounded-full bg-dark-900 border border-dark-800 flex items-center justify-center text-dark-500">
+                  <ShoppingBag size={16} />
                 </div>
-                <p className="text-sm">Select delicious food from the menu to populate your basket.</p>
+                <p className="text-xs max-w-[200px] leading-relaxed">Select delicious dishes from the menu to populate your basket.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmitOrder} className="space-y-4">
-                <div className="max-h-[320px] overflow-y-auto space-y-3 pr-1">
+                <div className="max-h-[300px] overflow-y-auto space-y-2.5 pr-1 scrollbar-none">
                   {cart.map((item) => (
                     <div
                       key={item.foodItem._id}
                       className="flex items-center justify-between gap-3 p-3 rounded-xl border border-dark-850 bg-dark-900/40"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-white truncate">{item.foodItem.name}</p>
-                        <p className="text-xs text-brand-400 font-bold mt-0.5">₹{item.foodItem.price}</p>
+                        <p className="font-semibold text-xs text-white truncate">{item.foodItem.name}</p>
+                        <p className="text-[10px] text-brand-400 font-bold mt-0.5">₹{item.foodItem.price}</p>
                       </div>
                       
                       {/* Quantity Controls */}
@@ -325,37 +407,37 @@ const Menu = () => {
                         <button
                           type="button"
                           onClick={() => handleUpdateQuantity(item.foodItem._id, -1)}
-                          className="h-7 w-7 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white flex items-center justify-center cursor-pointer border border-dark-750"
+                          className="h-6 w-6 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white flex items-center justify-center cursor-pointer border border-dark-750"
                         >
-                          <Minus size={12} />
+                          <Minus size={10} />
                         </button>
-                        <span className="text-sm font-semibold text-white w-4 text-center">
+                        <span className="text-xs font-semibold text-white w-4 text-center">
                           {item.quantity}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleUpdateQuantity(item.foodItem._id, 1)}
-                          className="h-7 w-7 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white flex items-center justify-center cursor-pointer border border-dark-750"
+                          className="h-6 w-6 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white flex items-center justify-center cursor-pointer border border-dark-750"
                         >
-                          <Plus size={12} />
+                          <Plus size={10} />
                         </button>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => handleRemoveFromCart(item.foodItem._id)}
-                        className="text-dark-400 hover:text-rose-400 cursor-pointer p-1"
+                        className="text-dark-500 hover:text-rose-450 cursor-pointer p-0.5"
                       >
-                        <X size={14} />
+                        <X size={12} />
                       </button>
                     </div>
                   ))}
                 </div>
 
-                <div className="border-t border-dark-850 pt-4 space-y-3">
+                <div className="border-t border-dark-850 pt-4 space-y-4">
                   {/* Special Requests */}
                   <div>
-                    <label htmlFor="notes" className="block text-xs font-semibold text-dark-400 mb-1.5">
+                    <label htmlFor="notes" className="block text-[10px] font-semibold text-dark-400 mb-1.5 uppercase tracking-wider">
                       Cooking Notes / Special Requests
                     </label>
                     <textarea
@@ -363,28 +445,28 @@ const Menu = () => {
                       rows={2}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="e.g. No onions, make it extra spicy, etc."
+                      placeholder="e.g. No onions, make it extra spicy..."
                       className="w-full text-xs glass-input resize-none"
                     />
                   </div>
 
                   {/* Summary */}
-                  <div className="flex justify-between items-center text-sm font-bold text-white pt-2 border-b border-dark-850 pb-3">
+                  <div className="flex justify-between items-center text-xs font-bold text-white pt-2 border-b border-dark-850 pb-3">
                     <span>Basket Subtotal</span>
-                    <span className="text-brand-400 text-lg">₹{getCartTotal()}</span>
+                    <span className="text-brand-400 text-base">₹{getCartTotal()}</span>
                   </div>
 
                   {/* Submit button */}
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full glass-btn-primary flex items-center justify-center gap-2 mt-2"
+                    className="w-full glass-btn-primary flex items-center justify-center gap-2 mt-1 py-3 text-xs"
                   >
                     {isSubmitting ? (
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                     ) : (
                       <>
-                        <Check size={16} />
+                        <Check size={14} />
                         <span>Place Order to Kitchen</span>
                       </>
                     )}
@@ -396,75 +478,214 @@ const Menu = () => {
         </div>
       </div>
 
-      {/* Bill Dialog Popup */}
+      {/* Floating Sticky Cart Summary Button (Mobile & Tablet viewports only) */}
+      {cart.length > 0 && (
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="lg:hidden fixed bottom-6 right-6 z-45 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-full py-3.5 px-5 shadow-2xl flex items-center gap-2.5 font-extrabold border border-brand-400/35 backdrop-blur-md active:scale-95 transition-transform duration-200 animate-slide-up"
+        >
+          <ShoppingBag size={16} />
+          <span className="text-xs">{cart.reduce((sum, item) => sum + item.quantity, 0)} Items • ₹{getCartTotal()}</span>
+        </button>
+      )}
+
+      {/* Mobile Cart Bottom Sheet Drawer (Mobile & Tablet viewports only) */}
+      {isCartOpen && (
+        <>
+          {/* Slide Backdrop */}
+          <div 
+            className="lg:hidden fixed inset-0 z-45 bg-black/75 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setIsCartOpen(false)}
+          />
+          {/* Drawer Sheet */}
+          <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-dark-950/98 border-t border-brand-500/20 rounded-t-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col backdrop-blur-lg transform transition-transform duration-300 ease-out animate-slide-up">
+            {/* Grab Bar Handle */}
+            <div className="w-12 h-1.5 rounded-full bg-dark-800 mx-auto mt-4 mb-3" />
+            
+            <div className="px-6 pb-8 flex-1 overflow-y-auto flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center mb-5">
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <ShoppingBag size={18} className="text-brand-400" />
+                    <span>Your Basket</span>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
+                      {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                    </span>
+                  </h2>
+                  <button
+                    onClick={() => setIsCartOpen(false)}
+                    className="text-dark-400 hover:text-white p-1"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {cart.length === 0 ? (
+                  <div className="py-12 text-center text-dark-500">
+                    Your basket is empty.
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[40vh] overflow-y-auto scrollbar-none pr-1">
+                    {cart.map((item) => (
+                      <div
+                        key={item.foodItem._id}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl border border-dark-850 bg-dark-900/40"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-xs text-white truncate">{item.foodItem.name}</p>
+                          <p className="text-[10px] text-brand-400 font-bold mt-0.5">₹{item.foodItem.price}</p>
+                        </div>
+                        
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQuantity(item.foodItem._id, -1)}
+                            className="h-6 w-6 rounded-lg bg-dark-800 text-dark-200 flex items-center justify-center border border-dark-750"
+                          >
+                            <Minus size={10} />
+                          </button>
+                          <span className="text-xs font-semibold text-white w-4 text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateQuantity(item.foodItem._id, 1)}
+                            className="h-6 w-6 rounded-lg bg-dark-800 text-dark-200 flex items-center justify-center border border-dark-750"
+                          >
+                            <Plus size={10} />
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFromCart(item.foodItem._id)}
+                          className="text-dark-500 hover:text-rose-400 p-0.5"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {cart.length > 0 && (
+                <div className="border-t border-dark-850 pt-4 mt-6 space-y-4">
+                  {/* Mobile Special Requests */}
+                  <div>
+                    <label htmlFor="mobile-notes" className="block text-[10px] font-semibold text-dark-400 mb-1.5 uppercase tracking-wider">
+                      Cooking Notes / Special Requests
+                    </label>
+                    <textarea
+                      id="mobile-notes"
+                      rows={2}
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="e.g. No onions, make it extra spicy..."
+                      className="w-full text-xs glass-input resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs font-bold text-white pt-2 border-b border-dark-850 pb-3">
+                    <span>Basket Subtotal</span>
+                    <span className="text-brand-400 text-base">₹{getCartTotal()}</span>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      handleSubmitOrder(e);
+                    }}
+                    disabled={isSubmitting}
+                    className="w-full glass-btn-primary py-3.5 flex items-center justify-center gap-2 text-xs font-extrabold shadow-md shadow-brand-500/10 active:scale-95"
+                  >
+                    {isSubmitting ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    ) : (
+                      <>
+                        <Check size={14} />
+                        <span>Place Order to Kitchen</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Bill Checkout Modal Dialog */}
       {checkoutBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="glass max-w-lg w-full rounded-2xl p-6 border-brand-500/20 max-h-[90vh] overflow-y-auto animate-scale-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="glass max-w-lg w-full rounded-2xl p-5 border-brand-500/20 max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex justify-between items-center pb-4 border-b border-dark-850 mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Utensils className="text-brand-400" />
+              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                <Utensils className="text-brand-400 w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Table {checkoutBill.tableNumber} Receipt</span>
               </h2>
               <button
                 onClick={() => setCheckoutBill(null)}
                 className="text-dark-400 hover:text-white cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-dark-400">Bill ID: {checkoutBill._id}</p>
-                <p className="text-xs text-dark-400 mt-0.5">Date: {new Date(checkoutBill.createdAt).toLocaleString()}</p>
+                <p className="text-[10px] text-dark-400">Bill ID: {checkoutBill._id}</p>
+                <p className="text-[10px] text-dark-400 mt-0.5">Date: {new Date(checkoutBill.createdAt).toLocaleString()}</p>
               </div>
 
-              {/* Aggregated Orders list */}
+              {/* Aggregated Orders */}
               <div className="space-y-3">
-                <p className="text-xs font-bold text-white border-b border-dark-850 pb-1">Items Details</p>
-                {checkoutBill.orders.map((order, orderIdx) => (
-                  <div key={order._id} className="text-xs space-y-1">
-                    <p className="text-brand-400 font-semibold">Order #{orderIdx + 1} ({new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})</p>
-                    {order.items.map((item) => (
-                      <div key={item._id} className="flex justify-between text-dark-300 py-0.5">
-                        <span>{item.foodItem?.name || 'Dish'} x {item.quantity}</span>
-                        <span>₹{item.price * item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                <p className="text-[10px] font-bold text-white border-b border-dark-850 pb-1 uppercase tracking-wider">Itemized Breakdown</p>
+                <div className="max-h-[200px] overflow-y-auto space-y-3 pr-1 scrollbar-none">
+                  {checkoutBill.orders.map((order, orderIdx) => (
+                    <div key={order._id} className="text-xs space-y-1">
+                      <p className="text-brand-400 font-semibold">Order #{orderIdx + 1} ({new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})</p>
+                      {order.items.map((item) => (
+                        <div key={item._id} className="flex justify-between text-dark-300 py-0.5 text-[11px]">
+                          <span>{item.foodItem?.name || 'Dish'} x {item.quantity}</span>
+                          <span>₹{item.price * item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Price Breakdown */}
-              <div className="border-t border-dark-850 pt-4 space-y-2 text-sm">
-                <div className="flex justify-between text-dark-300">
+              {/* Price Details */}
+              <div className="border-t border-dark-850 pt-3 space-y-2 text-xs">
+                <div className="flex justify-between text-dark-350">
                   <span>Subtotal</span>
                   <span>₹{checkoutBill.subTotal}</span>
                 </div>
-                <div className="flex justify-between text-dark-300">
+                <div className="flex justify-between text-dark-355">
                   <span>Tax (5% GST)</span>
                   <span>₹{checkoutBill.tax}</span>
                 </div>
-                <div className="flex justify-between text-dark-300">
+                <div className="flex justify-between text-dark-350">
                   <span>Service Charge (10%)</span>
                   <span>₹{checkoutBill.serviceCharge}</span>
                 </div>
-                <div className="flex justify-between text-white font-extrabold text-lg border-t border-dark-850 pt-3">
+                <div className="flex justify-between text-white font-extrabold text-base border-t border-dark-850 pt-3">
                   <span>Total Amount</span>
-                  <span className="text-brand-400">₹{checkoutBill.totalAmount}</span>
+                  <span className="text-brand-400 text-lg">₹{checkoutBill.totalAmount}</span>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-brand-500/5 border border-brand-500/10 p-4 text-center mt-6">
-                <p className="text-xs text-brand-400 font-semibold mb-1">Electronic Bill Requested</p>
-                <p className="text-xs text-dark-300">
-                  Please show this bill to your waiter. They will process your payment at your table.
+              <div className="rounded-xl bg-brand-500/5 border border-brand-500/10 p-3.5 text-center mt-4">
+                <p className="text-[11px] text-brand-400 font-semibold mb-1">🛎️ Bill Generation Successful</p>
+                <p className="text-[10px] text-dark-300 leading-relaxed">
+                  Please show this receipt to your waiter. They will finalize your checkout and process payment (Cash, Card, or UPI) at your table.
                 </p>
               </div>
 
               <button
                 onClick={() => setCheckoutBill(null)}
-                className="w-full glass-btn-secondary text-sm font-semibold"
+                className="w-full glass-btn-secondary py-2.5 text-xs font-semibold"
               >
                 Close Receipt
               </button>
@@ -473,22 +694,22 @@ const Menu = () => {
         </div>
       )}
 
-      {/* Order Success Popup */}
+      {/* Order Sent Successfully Dialog Popup */}
       {orderSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="glass max-w-md w-full rounded-2xl p-8 border-brand-500/20 text-center animate-scale-in">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 mb-5">
-              <Check size={32} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="glass max-w-md w-full rounded-2xl p-6 sm:p-8 border-brand-500/20 text-center animate-scale-in">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 mb-4 animate-bounce">
+              <Check size={28} />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Order Sent to Kitchen!</h2>
-            <p className="text-dark-300 text-sm mb-6 leading-relaxed">
-              We have received your order for table <span className="text-brand-400 font-bold">#{orderSuccess.tableNumber}</span>. The kitchen is preparing it, and our waiter will serve it to your table shortly.
+            <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-2 font-display">Sent to Kitchen!</h2>
+            <p className="text-dark-300 text-xs sm:text-sm mb-5 leading-relaxed">
+              We've received your order for table <span className="text-brand-400 font-bold">#{orderSuccess.tableNumber}</span>. The kitchen is preparing it, and our waiter will serve it to your table shortly.
             </p>
 
-            <div className="glass bg-dark-950/60 p-4 rounded-xl mb-6 text-left space-y-1.5">
-              <p className="text-xs text-dark-400 font-semibold">Order Details</p>
+            <div className="glass bg-dark-950/60 p-4 rounded-xl mb-5 text-left space-y-1.5 max-h-[150px] overflow-y-auto scrollbar-none">
+              <p className="text-[10px] text-dark-400 font-semibold uppercase tracking-wider">Order Items</p>
               {orderSuccess.items.map((item) => (
-                <div key={item._id} className="flex justify-between text-xs text-dark-200">
+                <div key={item._id} className="flex justify-between text-[11px] text-dark-250">
                   <span>{item.foodItem?.name || 'Item'} x {item.quantity}</span>
                   <span>₹{item.price * item.quantity}</span>
                 </div>
@@ -499,14 +720,12 @@ const Menu = () => {
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setOrderSuccess(null)}
-                className="flex-1 glass-btn-primary py-2 text-sm font-semibold"
-              >
-                Order More Food
-              </button>
-            </div>
+            <button
+              onClick={() => setOrderSuccess(null)}
+              className="w-full glass-btn-primary py-2.5 text-xs font-semibold shadow-md active:scale-95"
+            >
+              Order More Food
+            </button>
           </div>
         </div>
       )}
