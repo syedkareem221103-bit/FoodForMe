@@ -60,17 +60,28 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
-      if (data.success) {
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        return { 
+          success: false, 
+          message: `Server returned an invalid response (${response.status} ${response.statusText})` 
+        };
+      }
+
+      if (response.ok && data.success) {
         localStorage.setItem('token', data.token);
         setToken(data.token);
         setUser(data.user);
         return { success: true, user: data.user };
       } else {
-        return { success: false, message: data.message || 'Login failed' };
+        return { success: false, message: data.message || `Login failed with status ${response.status}` };
       }
     } catch (error) {
-      return { success: false, message: 'Server connection failed' };
+      console.error('Login error:', error);
+      return { success: false, message: `Server connection failed: ${error.message}` };
     } finally {
       setLoading(false);
     }
@@ -87,17 +98,28 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify(restaurantData),
       });
 
-      const data = await response.json();
-      if (data.success) {
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        return { 
+          success: false, 
+          message: `Server returned an invalid response (${response.status} ${response.statusText})` 
+        };
+      }
+
+      if (response.ok && data.success) {
         localStorage.setItem('token', data.token);
         setToken(data.token);
         setUser(data.user);
         return { success: true, user: data.user, restaurant: data.restaurant };
       } else {
-        return { success: false, message: data.message || 'Registration failed' };
+        return { success: false, message: data.message || `Registration failed with status ${response.status}` };
       }
     } catch (error) {
-      return { success: false, message: 'Server connection failed' };
+      console.error('Registration error:', error);
+      return { success: false, message: `Server connection failed: ${error.message}` };
     } finally {
       setLoading(false);
     }
