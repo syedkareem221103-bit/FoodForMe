@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import Restaurant from '../models/Restaurant.js';
 import User from '../models/User.js';
 import Table from '../models/Table.js';
 import FoodItem from '../models/FoodItem.js';
@@ -22,12 +23,26 @@ const seedData = async () => {
     console.log('Connected to database for seeding...');
 
     // Clear existing data
+    await Restaurant.deleteMany();
     await User.deleteMany();
     await Table.deleteMany();
     await FoodItem.deleteMany();
     await Order.deleteMany();
     await Bill.deleteMany();
     console.log('Existing collections cleared.');
+
+    // Seed Default Restaurant
+    const defaultRestaurant = await Restaurant.create({
+      restaurantName: 'FoodForMe Bistro',
+      ownerName: 'Admin Owner',
+      email: 'admin@foodforme.com',
+      password: 'password123',
+      phone: '+91 98765 43210',
+      address: '128 Gourmet Street, Bangalore',
+      restaurantType: 'Restaurant',
+      subscriptionPlan: 'Pro Premium',
+    });
+    console.log('Default Demo Restaurant created.');
 
     // Seed Users
     const users = await User.create([
@@ -36,35 +51,41 @@ const seedData = async () => {
         email: 'admin@foodforme.com',
         password: 'password123',
         role: 'admin',
+        restaurantId: defaultRestaurant._id,
+        permissions: ['all'],
       },
       {
         name: 'John Waiter',
         email: 'waiter@foodforme.com',
         password: 'password123',
         role: 'waiter',
+        restaurantId: defaultRestaurant._id,
+        permissions: [],
       },
       {
         name: 'Chef Mario',
         email: 'kitchen@foodforme.com',
         password: 'password123',
         role: 'kitchen',
+        restaurantId: defaultRestaurant._id,
+        permissions: [],
       },
     ]);
     console.log(`Seeded ${users.length} users successfully.`);
 
     // Seed Tables
     const tables = await Table.create([
-      { number: 1, capacity: 2, status: 'empty' },
-      { number: 2, capacity: 4, status: 'empty' },
-      { number: 3, capacity: 4, status: 'empty' },
-      { number: 4, capacity: 6, status: 'empty' },
-      { number: 5, capacity: 2, status: 'empty' },
-      { number: 6, capacity: 8, status: 'empty' },
+      { number: 1, capacity: 2, status: 'empty', restaurantId: defaultRestaurant._id },
+      { number: 2, capacity: 4, status: 'empty', restaurantId: defaultRestaurant._id },
+      { number: 3, capacity: 4, status: 'empty', restaurantId: defaultRestaurant._id },
+      { number: 4, capacity: 6, status: 'empty', restaurantId: defaultRestaurant._id },
+      { number: 5, capacity: 2, status: 'empty', restaurantId: defaultRestaurant._id },
+      { number: 6, capacity: 8, status: 'empty', restaurantId: defaultRestaurant._id },
     ]);
     console.log(`Seeded ${tables.length} tables successfully.`);
 
     // Seed Food Items
-    const foodItems = await FoodItem.create([
+    const foodItemsRaw = [
       {
         name: 'Crispy Garlic Bread',
         description: 'Toasted baguette slices with fresh garlic butter, parsley, and melted mozzarella cheese.',
@@ -146,7 +167,9 @@ const seedData = async () => {
         spicyLevel: 0,
         image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&q=80&w=400',
       },
-    ]);
+    ].map(item => ({ ...item, restaurantId: defaultRestaurant._id }));
+
+    const foodItems = await FoodItem.create(foodItemsRaw);
     console.log(`Seeded ${foodItems.length} food items successfully.`);
 
     console.log('Seeding completed successfully!');

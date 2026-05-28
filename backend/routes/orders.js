@@ -10,7 +10,11 @@ const router = express.Router();
 // @access  Public (Customers scan QR and place orders)
 router.post('/', async (req, res, next) => {
   try {
-    const { tableNumber, items, notes } = req.body;
+    const { tableNumber, items, notes, restaurantId } = req.body;
+
+    if (!restaurantId) {
+      return res.status(400).json({ success: false, message: 'Restaurant scope identifier is required' });
+    }
 
     if (!tableNumber) {
       return res.status(400).json({ success: false, message: 'Please provide a table number' });
@@ -23,13 +27,13 @@ router.post('/', async (req, res, next) => {
     let totalAmount = 0;
     const itemsToSave = [];
 
-    // Fetch database pricing for items to prevent client tampering
+    // Fetch database pricing for items to prevent client tampering, ensuring they belong to this restaurant
     for (const item of items) {
-      const foodItem = await FoodItem.findById(item.foodItem);
+      const foodItem = await FoodItem.findOne({ _id: item.foodItem, restaurantId });
       if (!foodItem) {
         return res.status(404).json({
           success: false,
-          message: `Food item with ID ${item.foodItem} not found`,
+          message: `Food item not found in this restaurant`,
         });
       }
       if (!foodItem.isAvailable) {
@@ -55,6 +59,7 @@ router.post('/', async (req, res, next) => {
       totalAmount,
       notes: notes || '',
       status: 'pending',
+      restaurantId,
     });
 
     // Populate foodItem info for response
@@ -71,7 +76,8 @@ router.post('/', async (req, res, next) => {
 // @access  Private (Admin, Waiter, Kitchen)
 router.get('/', protect, authorize('admin', 'waiter', 'kitchen'), async (req, res, next) => {
   try {
-    const filter = {};
+    const filter = { restaurantId: req.user.restaurantId };
+    
     if (req.query.status) {
       filter.status = req.query.status;
     }
@@ -102,12 +108,12 @@ router.put('/:id/status', protect, authorize('admin', 'waiter', 'kitchen'), asyn
       return res.status(400).json({ success: false, message: 'Invalid order status' });
     }
 
-    let order = await Order.findById(req.params.id);
+    let order = await Order.findOne({ _id: req.params.id, restaurantId: req.user.restaurantId });
     if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      return res.status(404).json({ success: false, message: 'Order not found in your restaurant' });
     }
 
-    // Hardened Concurrency & Duplicate Prevention Checks
+    // Concurrency & Duplicate Prevention Checks
     if (status === 'cooking' && order.status !== 'pending') {
       return res.status(400).json({
         success: false,

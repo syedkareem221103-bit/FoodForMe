@@ -44,6 +44,11 @@ const orderSchema = new mongoose.Schema(
     prepStartedAt: {
       type: Date,
     },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Restaurant',
+      required: true,
+    },
   },
   {
     timestamps: true,

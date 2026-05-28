@@ -18,11 +18,13 @@ router.get('/stats', async (req, res, next) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    const restaurantId = req.user.restaurantId;
 
     // 1. Total Daily Sales (unpaid + paid today)
     const dailySalesPaid = await Bill.aggregate([
       {
         $match: {
+          restaurantId,
           paymentStatus: 'paid',
           updatedAt: { $gte: startOfToday }
         }
@@ -40,6 +42,7 @@ router.get('/stats', async (req, res, next) => {
     const dailySalesUnpaid = await Bill.aggregate([
       {
         $match: {
+          restaurantId,
           paymentStatus: 'pending',
           createdAt: { $gte: startOfToday }
         }
@@ -57,21 +60,25 @@ router.get('/stats', async (req, res, next) => {
 
     // 2. Total Orders today
     const totalOrdersToday = await Order.countDocuments({
+      restaurantId,
       createdAt: { $gte: startOfToday }
     });
 
     // 3. Active Tables count
     const activeTables = await Table.countDocuments({
+      restaurantId,
       status: { $ne: 'empty' }
     });
 
     // 4. Pending Kitchen Orders count
     const pendingKitchenOrders = await Order.countDocuments({
+      restaurantId,
       status: { $in: ['pending', 'cooking'] }
     });
 
     // 5. Delivered/Served Orders count today
     const deliveredOrdersToday = await Order.countDocuments({
+      restaurantId,
       status: 'served',
       updatedAt: { $gte: startOfToday }
     });
@@ -100,6 +107,7 @@ router.get('/charts', async (req, res, next) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+    const restaurantId = req.user.restaurantId;
 
     // 1. Revenue Trends (Past 7 Days)
     const revenueLast7Days = [];
@@ -111,10 +119,11 @@ router.get('/charts', async (req, res, next) => {
       const nextDay = new Date(day);
       nextDay.setDate(nextDay.getDate() + 1);
 
-      // We sum total billing checkout amounts finalized/billed on that day
+      // Sum total billing checkout amounts finalized/billed on that day
       const daySales = await Bill.aggregate([
         {
           $match: {
+            restaurantId,
             paymentStatus: 'paid',
             updatedAt: { $gte: day, $lt: nextDay }
           }
@@ -135,6 +144,7 @@ router.get('/charts', async (req, res, next) => {
 
     // 2. Order volume trend per hour (Today)
     const ordersToday = await Order.find({
+      restaurantId,
       createdAt: { $gte: startOfToday }
     });
 
@@ -171,7 +181,10 @@ router.get('/charts', async (req, res, next) => {
 // @access  Private (Admin only)
 router.get('/top-items', async (req, res, next) => {
   try {
+    const restaurantId = req.user.restaurantId;
+
     const mostOrdered = await Order.aggregate([
+      { $match: { restaurantId } },
       { $unwind: '$items' },
       {
         $group: {
@@ -186,7 +199,7 @@ router.get('/top-items', async (req, res, next) => {
     const populatedItems = await Promise.all(
       mostOrdered.map(async (item) => {
         if (!item._id) return null;
-        const food = await FoodItem.findById(item._id);
+        const food = await FoodItem.findOne({ _id: item._id, restaurantId });
         return {
           foodItem: food || { name: 'Unknown Dish', price: 0 },
           count: item.count
@@ -208,8 +221,10 @@ router.get('/top-items', async (req, res, next) => {
 // @access  Private (Admin only)
 router.get('/history', async (req, res, next) => {
   try {
+    const restaurantId = req.user.restaurantId;
+
     // Return all completed bills, newest first
-    const bills = await Bill.find()
+    const bills = await Bill.find({ restaurantId })
       .populate({
         path: 'orders',
         populate: { path: 'items.foodItem' }

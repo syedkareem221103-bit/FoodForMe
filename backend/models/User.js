@@ -27,6 +27,14 @@ const userSchema = new mongoose.Schema(
       enum: ['admin', 'waiter', 'kitchen'],
       default: 'waiter',
     },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Restaurant',
+    },
+    permissions: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,

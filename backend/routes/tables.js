@@ -1,17 +1,38 @@
 import express from 'express';
+import jwt from 'jsonwebtoken';
 import Table from '../models/Table.js';
 import Order from '../models/Order.js';
 import Bill from '../models/Bill.js';
+import User from '../models/User.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Helper to resolve restaurant ID for public routes (like customer checkout)
+const resolveRestaurantId = async (req) => {
+  let restaurantId = req.query.restaurantId || req.body.restaurantId;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'super_secret_foodforme_key_12345');
+      const user = await User.findById(decoded.id);
+      if (user) {
+        restaurantId = user.restaurantId;
+      }
+    } catch (err) {
+      // Gracefully ignore token decryption failure, rely on query params
+    }
+  }
+  return restaurantId;
+};
+
 // @desc    Get all tables
 // @route   GET /api/tables
-// @access  Public (so frontend can check table layout / scan page)
-router.get('/', async (req, res, next) => {
+// @access  Private (Staff only)
+router.get('/', protect, async (req, res, next) => {
   try {
-    const tables = await Table.find().sort({ number: 1 });
+    const tables = await Table.find({ restaurantId: req.user.restaurantId }).sort({ number: 1 });
     res.status(200).json({ success: true, count: tables.length, data: tables });
   } catch (error) {
     next(error);
@@ -25,12 +46,16 @@ router.post('/', protect, authorize('admin'), async (req, res, next) => {
   try {
     const { number, capacity } = req.body;
 
-    const tableExists = await Table.findOne({ number });
+    const tableExists = await Table.findOne({ number, restaurantId: req.user.restaurantId });
     if (tableExists) {
       return res.status(400).json({ success: false, message: `Table ${number} already exists` });
     }
 
-    const table = await Table.create({ number, capacity });
+    const table = await Table.create({
+      number,
+      capacity,
+      restaurantId: req.user.restaurantId,
+    });
     res.status(201).json({ success: true, data: table });
   } catch (error) {
     next(error);
@@ -49,7 +74,7 @@ router.put('/:number', protect, authorize('admin', 'waiter'), async (req, res, n
       return res.status(400).json({ success: false, message: 'Invalid table status' });
     }
 
-    const table = await Table.findOne({ number: req.params.number });
+    const table = await Table.findOne({ number: req.params.number, restaurantId: req.user.restaurantId });
     if (!table) {
       return res.status(404).json({ success: false, message: 'Table not found' });
     }
@@ -69,18 +94,18 @@ router.put('/:number', protect, authorize('admin', 'waiter'), async (req, res, n
 router.post('/:number/checkout', async (req, res, next) => {
   try {
     const tableNumber = parseInt(req.params.number);
+    const restaurantId = await resolveRestaurantId(req);
 
-    // Find all orders for this table that are NOT already in any paid bill
-    // To do this, find orders for this table that aren't attached to a paid bill
-    // Simply, find all orders for the table. When a bill is paid, we can mark table as empty.
-    // For safety, let's find all active orders (status: pending, cooking, ready, served) that aren't part of a paid bill.
-    // Actually, we can find orders for this table. Let's find orders created in the last 12 hours that don't belong to a paid bill.
-    // Let's filter orders for tableNumber.
-    // To simplify: find all orders for this table that are NOT paid.
-    // Let's find bills that are pending for this table, or if none, find orders that have no bills yet.
-    
-    // First, let's check if there's already an active unpaid bill for this table
-    let existingBill = await Bill.findOne({ tableNumber, paymentStatus: 'pending' }).populate({
+    if (!restaurantId) {
+      return res.status(400).json({ success: false, message: 'Restaurant scope identifier is required' });
+    }
+
+    // 1. Check if there's already an active unpaid bill for this table in this restaurant
+    let existingBill = await Bill.findOne({
+      tableNumber,
+      restaurantId,
+      paymentStatus: 'pending',
+    }).populate({
       path: 'orders',
       populate: { path: 'items.foodItem' }
     });
@@ -89,24 +114,19 @@ router.post('/:number/checkout', async (req, res, next) => {
       return res.status(200).json({ success: true, message: 'Active bill exists', data: existingBill });
     }
 
-    // Otherwise, find all orders that are active (not empty/billed)
-    // To identify unbilled orders, we find all orders for this table.
-    // Let's look up orders that have status !== 'served' or even 'served' (all of them).
-    // Let's find all orders for this table created recently (e.g. today) that are not linked to a paid bill.
-    // We can query all orders for this table, and then find bills referencing them.
-    const allTableOrders = await Order.find({ tableNumber }).populate('items.foodItem');
+    // 2. Otherwise, find all orders for this table in this restaurant
+    const allTableOrders = await Order.find({ tableNumber, restaurantId }).populate('items.foodItem');
     if (allTableOrders.length === 0) {
       return res.status(400).json({ success: false, message: 'No orders found for this table' });
     }
 
-    // Find all bills for this table to see which orders are already billed
-    const existingBills = await Bill.find({ tableNumber });
+    // Find all bills for this table in this restaurant to filter out billed orders
+    const existingBills = await Bill.find({ tableNumber, restaurantId });
     const billedOrderIds = new Set();
     existingBills.forEach(b => {
       b.orders.forEach(oId => billedOrderIds.add(oId.toString()));
     });
 
-    // Filter out orders that are already billed
     const unbilledOrders = allTableOrders.filter(o => !billedOrderIds.has(o._id.toString()));
 
     if (unbilledOrders.length === 0) {
@@ -127,10 +147,11 @@ router.post('/:number/checkout', async (req, res, next) => {
       serviceCharge,
       totalAmount,
       paymentStatus: 'pending',
+      restaurantId,
     });
 
-    // Update table status to occupied if checkout is in progress
-    await Table.findOneAndUpdate({ number: tableNumber }, { status: 'occupied' });
+    // Update table status to occupied
+    await Table.findOneAndUpdate({ number: tableNumber, restaurantId }, { status: 'occupied' });
 
     const populatedBill = await Bill.findById(newBill._id).populate({
       path: 'orders',
@@ -150,8 +171,9 @@ router.put('/:number/pay-bill', protect, authorize('admin', 'waiter'), async (re
   try {
     const tableNumber = parseInt(req.params.number);
     const { paymentMethod } = req.body;
+    const restaurantId = req.user.restaurantId;
 
-    const bill = await Bill.findOne({ tableNumber, paymentStatus: 'pending' });
+    const bill = await Bill.findOne({ tableNumber, restaurantId, paymentStatus: 'pending' });
     if (!bill) {
       return res.status(404).json({ success: false, message: 'No pending bill found for this table' });
     }
@@ -161,7 +183,7 @@ router.put('/:number/pay-bill', protect, authorize('admin', 'waiter'), async (re
     await bill.save();
 
     // Mark the table as empty
-    await Table.findOneAndUpdate({ number: tableNumber }, { status: 'empty' });
+    await Table.findOneAndUpdate({ number: tableNumber, restaurantId }, { status: 'empty' });
 
     res.status(200).json({ success: true, message: 'Bill paid successfully, table is now empty', data: bill });
   } catch (error) {
@@ -175,15 +197,21 @@ router.put('/:number/pay-bill', protect, authorize('admin', 'waiter'), async (re
 router.get('/:number/qr', async (req, res, next) => {
   try {
     const tableNumber = parseInt(req.params.number);
-    const table = await Table.findOne({ number: tableNumber });
+    const restaurantId = req.query.restaurantId;
+
+    if (!restaurantId) {
+      return res.status(400).json({ success: false, message: 'Restaurant scope identifier is required' });
+    }
+
+    const table = await Table.findOne({ number: tableNumber, restaurantId });
     if (!table) {
       return res.status(404).json({ success: false, message: 'Table not found' });
     }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const scanUrl = `${frontendUrl}/menu?table=${tableNumber}`;
+    const scanUrl = `${frontendUrl}/restaurant/${restaurantId}/table/${tableNumber}`;
 
-    // Redirect to a high-speed public QR code generator API
+    // Redirect to dynamic printable QR card compiler
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(scanUrl)}`;
     
     res.redirect(qrCodeUrl);

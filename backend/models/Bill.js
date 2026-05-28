@@ -41,6 +41,11 @@ const billSchema = new mongoose.Schema(
       enum: ['cash', 'card', 'upi', 'pending'],
       default: 'pending',
     },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Restaurant',
+      required: true,
+    },
   },
   {
     timestamps: true,

@@ -5,7 +5,11 @@ const tableSchema = new mongoose.Schema(
     number: {
       type: Number,
       required: [true, 'Please add a table number'],
-      unique: true,
+    },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Restaurant',
+      required: true,
     },
     status: {
       type: String,
@@ -21,6 +25,8 @@ const tableSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+tableSchema.index({ restaurantId: 1, number: 1 }, { unique: true });
 
 const Table = mongoose.model('Table', tableSchema);
 export default Table;

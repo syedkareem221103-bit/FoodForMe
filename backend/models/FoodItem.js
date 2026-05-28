@@ -36,6 +36,11 @@ const foodItemSchema = new mongoose.Schema(
       type: Number,
       default: 0, // 0 = Not spicy, 1 = Mild, 2 = Medium, 3 = Hot
     },
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Restaurant',
+      required: true,
+    },
   },
   {
     timestamps: true,
