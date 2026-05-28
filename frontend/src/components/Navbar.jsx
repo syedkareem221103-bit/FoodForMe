@@ -20,19 +20,19 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="glass sticky top-0 z-50 border-b border-dark-800/80 px-4 py-2.5 sm:px-6 sm:py-3.5 shadow-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between">
+    <nav className="glass sticky top-0 z-50 border-b border-dark-800/80 px-3 py-2 sm:px-6 sm:py-3.5 shadow-md">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
         {/* Brand Logo */}
-        <Link to={activeTable ? `/menu?table=${activeTable}` : '/'} className="flex items-center gap-2 sm:gap-2.5 group">
-          <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-md shadow-brand-500/25 group-hover:scale-105 transition-transform duration-200">
-            <UtensilsCrossed size={16} className="sm:w-5 sm:h-5" />
+        <Link to={activeTable ? `/menu?table=${activeTable}` : '/'} className="flex items-center gap-1.5 sm:gap-2.5 group flex-shrink-0">
+          <div className="flex h-7.5 w-7.5 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-md shadow-brand-500/25 group-hover:scale-105 transition-transform duration-200">
+            <UtensilsCrossed size={14} className="sm:w-5 sm:h-5" />
           </div>
           <div>
-            <span className="text-base sm:text-xl font-bold tracking-tight text-white font-display">
+            <span className="text-sm sm:text-xl font-black tracking-tight text-white font-display">
               Food<span className="text-brand-400">ForMe</span>
             </span>
             {activeTable && (
-              <span className="ml-1.5 sm:ml-2.5 inline-flex items-center rounded-full bg-brand-500/10 px-1.5 py-0.5 text-[10px] sm:text-xs font-semibold text-brand-400 border border-brand-500/20">
+              <span className="ml-1 sm:ml-2 inline-flex items-center rounded-full bg-brand-500/10 px-1.5 py-0.25 text-[9px] sm:text-xs font-bold text-brand-400 border border-brand-500/20">
                 T-{activeTable}
               </span>
             )}
@@ -40,7 +40,7 @@ const Navbar = () => {
         </Link>
 
         {/* Action Buttons / Navigation links */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-4 flex-shrink-0">
           {user ? (
             <>
               {/* Role specific links */}
@@ -81,9 +81,9 @@ const Navbar = () => {
 
               <button
                 onClick={handleLogout}
-                className="flex items-center justify-center gap-1.5 sm:gather-2 rounded-lg sm:rounded-xl bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer border border-dark-700 active:scale-95"
+                className="flex items-center justify-center gap-1 sm:gather-2 rounded-lg sm:rounded-xl bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white px-2 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-sm font-bold transition-all duration-200 cursor-pointer border border-dark-700 active:scale-95"
               >
-                <LogOut size={14} className="sm:w-4 sm:h-4" />
+                <LogOut size={12} className="sm:w-4 sm:h-4" />
                 <span className="hidden md:inline">Log Out</span>
               </button>
             </>
@@ -93,16 +93,16 @@ const Navbar = () => {
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <Link
                     to="/signin"
-                    className="flex items-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl bg-dark-850 hover:bg-dark-800 text-dark-200 hover:text-white px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium transition-all border border-dark-800"
+                    className="flex items-center gap-1 rounded-lg bg-dark-850 hover:bg-dark-800 text-dark-200 hover:text-white px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold transition-all border border-dark-800"
                   >
                     <LogIn size={13} className="sm:w-4 sm:h-4" />
                     <span>Sign In</span>
                   </Link>
                   <Link
                     to="/signup"
-                    className="flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl bg-brand-500 hover:bg-brand-400 text-white px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold transition-all shadow-md shadow-brand-900/10"
+                    className="flex items-center gap-1 rounded-lg bg-brand-500 hover:bg-brand-400 text-white px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-black transition-all shadow-md shadow-brand-900/10"
                   >
-                    <Sparkles size={11} className="sm:w-3.5 sm:h-3.5" />
+                    <Sparkles size={11} className="hidden sm:inline sm:w-3.5 sm:h-3.5" />
                     <span>Start Trial</span>
                   </Link>
                 </div>

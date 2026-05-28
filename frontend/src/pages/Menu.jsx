@@ -184,7 +184,7 @@ const Menu = () => {
 
   if (!restaurantId || !tableNumber) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 sm:px-6 sm:py-20 text-center animate-fade-in">
+      <div className="mx-auto max-w-md px-4 py-12 sm:px-6 sm:py-20 text-center animate-fade-in">
         <div className="glass border-rose-500/25 rounded-2xl p-6 sm:p-8 shadow-xl">
           <AlertCircle size={48} className="mx-auto text-rose-500 mb-4" />
           <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">No Table Scanned</h1>
@@ -200,7 +200,7 @@ const Menu = () => {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8 relative animate-fade-in">
+    <div className="mx-auto max-w-7xl px-4 pt-1 sm:pt-4 pb-8 sm:px-6 relative animate-fade-in">
       {/* Scoped CSS styling injected directly for clean customization */}
       <style>{`
         .scrollbar-none::-webkit-scrollbar {
@@ -231,40 +231,59 @@ const Menu = () => {
         </div>
       )}
 
-      {/* Customer Header - Modern & Compact */}
-      <div className="flex items-center justify-between border-b border-dark-900/60 pb-4 mb-5 gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-brand-400 font-semibold mb-0.5 text-xs sm:text-sm">
-            <Utensils size={14} className="flex-shrink-0" />
-            <span className="truncate">Table {tableNumber} Menu</span>
+      {/* Customer Header - Swiggy/Zomato Style Compact Mobile Header */}
+      <div className="border-b border-dark-900/50 pb-3 mb-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1 text-brand-400 font-semibold mb-0.5 text-xs">
+              <Utensils size={12} className="flex-shrink-0" />
+              <span>Table {tableNumber} Digital Menu</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white font-display tracking-tight flex items-center gap-1.5">
+              Discover Food
+              <Sparkles size={14} className="text-brand-400 hidden sm:inline animate-pulse" />
+            </h1>
           </div>
-          <h1 className="text-lg sm:text-2xl font-black text-white font-display tracking-tight flex items-center gap-1.5">
-            Discover Food
-            <Sparkles size={14} className="text-brand-400 hidden sm:inline animate-pulse" />
-          </h1>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Mobile top round waiter caller button to balance Swiggy structure */}
           <button
             onClick={handleCallWaiter}
-            className="rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 px-3 py-2 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            className="sm:hidden rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/25 p-2 text-xs font-bold transition-all flex items-center justify-center active:scale-95 cursor-pointer flex-shrink-0"
             title="Call Waiter"
           >
+            <PhoneCall size={14} />
+          </button>
+        </div>
+        
+        {/* Full-width Responsive Action Row BELOW the title for Swiggy/Zomato flow */}
+        <div className="flex items-center gap-2 mt-0.5">
+          <button
+            onClick={handleCallWaiter}
+            className="hidden sm:flex flex-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 py-2.5 text-xs font-bold transition-all items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+          >
             <PhoneCall size={13} />
-            <span className="hidden sm:inline">Call Waiter</span>
+            <span>Call Waiter</span>
           </button>
           <button
             onClick={handleRequestBill}
             disabled={billLoading}
-            className="glass-btn-primary px-3 py-2 text-xs font-extrabold flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            className="flex-1 glass-btn-primary py-2.5 text-xs font-black flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-md shadow-brand-500/10"
           >
             {billLoading ? (
-              <div className="h-3 w-3 animate-spin rounded-full border border-white border-t-transparent" />
+              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
             ) : (
               <>
                 <Receipt size={13} />
-                <span>Ask for Bill</span>
+                <span>Ask for Bill & Checkout</span>
               </>
             )}
+          </button>
+          {/* Mobile-only Call Waiter button in bottom action row */}
+          <button
+            onClick={handleCallWaiter}
+            className="sm:hidden flex-[0.5] rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/25 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+          >
+            <PhoneCall size={13} />
+            <span>Call</span>
           </button>
         </div>
       </div>
@@ -274,7 +293,7 @@ const Menu = () => {
         <div className="lg:col-span-2 space-y-4">
           
           {/* Horizontal Scrolling Sticky Category Tabs (with hidden scrollbar & snap alignment) */}
-          <div className="sticky top-[53px] sm:top-[68px] z-40 bg-dark-950/95 backdrop-blur-md py-3 -mx-4 border-b border-dark-900/50">
+          <div className="sticky top-[45px] sm:top-[68px] z-40 bg-dark-950/95 backdrop-blur-md py-2.5 -mx-4 border-b border-dark-900/50">
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory px-4">
               {categories.map((cat) => (
                 <button
@@ -297,7 +316,7 @@ const Menu = () => {
               <div className="h-8 w-8 animate-spin rounded-full border-3 border-brand-500 border-t-transparent"></div>
             </div>
           ) : error ? (
-            <div className="glass p-5 text-center text-rose-450 border-rose-500/10 rounded-2xl text-xs sm:text-sm font-semibold">
+            <div className="glass p-5 text-center text-rose-455 border-rose-500/10 rounded-2xl text-xs sm:text-sm font-semibold">
               {error}
             </div>
           ) : filteredItems.length === 0 ? (
@@ -325,8 +344,8 @@ const Menu = () => {
                     <div className="absolute top-3 left-3 flex gap-1.5 z-10">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border backdrop-blur-md uppercase tracking-wider ${
                         item.isVeg
-                          ? 'bg-emerald-950/70 text-emerald-450 border-emerald-500/20'
-                          : 'bg-rose-950/70 text-rose-450 border-rose-500/20'
+                          ? 'bg-emerald-950/70 text-emerald-455 border-emerald-500/20'
+                          : 'bg-rose-950/70 text-rose-455 border-rose-500/20'
                       }`}>
                         {item.isVeg ? '● Veg' : '▲ Non-Veg'}
                       </span>
@@ -426,7 +445,7 @@ const Menu = () => {
                       <button
                         type="button"
                         onClick={() => handleRemoveFromCart(item.foodItem._id)}
-                        className="text-dark-500 hover:text-rose-450 cursor-pointer p-0.5"
+                        className="text-dark-500 hover:text-rose-455 cursor-pointer p-0.5"
                       >
                         <X size={12} />
                       </button>
@@ -560,7 +579,7 @@ const Menu = () => {
                         <button
                           type="button"
                           onClick={() => handleRemoveFromCart(item.foodItem._id)}
-                          className="text-dark-500 hover:text-rose-400 p-0.5"
+                          className="text-dark-500 hover:text-rose-405 p-0.5"
                         >
                           <X size={12} />
                         </button>
@@ -662,7 +681,7 @@ const Menu = () => {
                   <span>Subtotal</span>
                   <span>₹{checkoutBill.subTotal}</span>
                 </div>
-                <div className="flex justify-between text-dark-355">
+                <div className="flex justify-between text-dark-350">
                   <span>Tax (5% GST)</span>
                   <span>₹{checkoutBill.tax}</span>
                 </div>
