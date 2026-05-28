@@ -2,7 +2,16 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 
 const AuthContext = createContext(null);
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+let base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+// Normalize: Remove trailing slash if present
+if (base.endsWith('/')) {
+  base = base.slice(0, -1);
+}
+// Normalize: Ensure the path includes '/api' so it maps correctly to Express routes
+if (!base.endsWith('/api') && !base.includes('/api/')) {
+  base = `${base}/api`;
+}
+export const API_BASE_URL = base;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -90,13 +99,27 @@ export const AuthProvider = ({ children }) => {
   const registerRestaurant = async (restaurantData) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register-restaurant`, {
+      let endpoint = `${API_BASE_URL}/auth/register-restaurant`;
+      let response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(restaurantData),
       });
+
+      // Fail-safe Retrying: If 404, automatically fall back to /auth/signup route alias
+      if (response.status === 404) {
+        console.warn(`Primary endpoint ${endpoint} returned 404. Retrying with /auth/signup alias...`);
+        endpoint = `${API_BASE_URL}/auth/signup`;
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(restaurantData),
+        });
+      }
 
       let data;
       try {
