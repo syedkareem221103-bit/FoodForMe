@@ -20,6 +20,11 @@ const tableSchema = new mongoose.Schema(
       type: Number,
       default: 4,
     },
+    activeOrder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Order',
+      default: null,
+    },
   },
   {
     timestamps: true,

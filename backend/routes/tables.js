@@ -79,10 +79,43 @@ router.put('/:number', protect, authorize('admin', 'waiter'), async (req, res, n
       return res.status(404).json({ success: false, message: 'Table not found' });
     }
 
+    // Prevent invalid transitions: cannot reserve an occupied table
+    if (table.status === 'occupied' && status === 'reserved') {
+      return res.status(400).json({ success: false, message: 'Cannot transition an occupied table directly to reserved' });
+    }
+
     table.status = status;
+    if (status === 'empty') {
+      table.activeOrder = null;
+    }
     await table.save();
 
     res.status(200).json({ success: true, data: table });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Mark a table as empty
+// @route   PUT /api/tables/:number/mark-empty
+// @access  Private (Admin, Waiter)
+router.put('/:number/mark-empty', protect, authorize('admin', 'waiter'), async (req, res, next) => {
+  try {
+    const tableNumber = parseInt(req.params.number);
+    const table = await Table.findOne({ number: tableNumber, restaurantId: req.user.restaurantId });
+    if (!table) {
+      return res.status(404).json({ success: false, message: 'Table not found' });
+    }
+
+    if (table.status !== 'occupied') {
+      return res.status(400).json({ success: false, message: 'Only occupied tables can be marked empty' });
+    }
+
+    table.status = 'empty';
+    table.activeOrder = null;
+    await table.save();
+
+    res.status(200).json({ success: true, message: `Table ${tableNumber} is now empty`, data: table });
   } catch (error) {
     next(error);
   }
@@ -182,10 +215,33 @@ router.put('/:number/pay-bill', protect, authorize('admin', 'waiter'), async (re
     bill.paymentMethod = paymentMethod || 'cash';
     await bill.save();
 
-    // Mark the table as empty
-    await Table.findOneAndUpdate({ number: tableNumber, restaurantId }, { status: 'empty' });
+    // Mark the table as empty and clear activeOrder reference
+    await Table.findOneAndUpdate({ number: tableNumber, restaurantId }, { status: 'empty', activeOrder: null });
 
     res.status(200).json({ success: true, message: 'Bill paid successfully, table is now empty', data: bill });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Get a single table by number (Public for customer check)
+// @route   GET /api/tables/status/:number
+// @access  Public
+router.get('/status/:number', async (req, res, next) => {
+  try {
+    const tableNumber = parseInt(req.params.number);
+    const restaurantId = req.query.restaurantId;
+
+    if (!restaurantId) {
+      return res.status(400).json({ success: false, message: 'Restaurant scope identifier is required' });
+    }
+
+    const table = await Table.findOne({ number: tableNumber, restaurantId });
+    if (!table) {
+      return res.status(404).json({ success: false, message: 'Table not found' });
+    }
+
+    res.status(200).json({ success: true, data: table });
   } catch (error) {
     next(error);
   }

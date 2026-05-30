@@ -1,6 +1,7 @@
 import express from 'express';
 import Order from '../models/Order.js';
 import FoodItem from '../models/FoodItem.js';
+import Table from '../models/Table.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -22,6 +23,12 @@ router.post('/', async (req, res, next) => {
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Order must contain at least one item' });
+    }
+
+    // Verify that the table exists in this restaurant (strict SaaS isolation)
+    const table = await Table.findOne({ number: tableNumber, restaurantId });
+    if (!table) {
+      return res.status(404).json({ success: false, message: `Table ${tableNumber} not found in this restaurant` });
     }
 
     let totalAmount = 0;
@@ -61,6 +68,11 @@ router.post('/', async (req, res, next) => {
       status: 'pending',
       restaurantId,
     });
+
+    // Automatically set the table to occupied and set its activeOrder reference
+    table.status = 'occupied';
+    table.activeOrder = order._id;
+    await table.save();
 
     // Populate foodItem info for response
     const populatedOrder = await Order.findById(order._id).populate('items.foodItem');
